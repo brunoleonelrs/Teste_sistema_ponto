@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Registro de Ponto</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+  <link rel="import" href="component.html">
+</head>
+<body>
+<div class="container">
+  <div id="step1">
+    <h1 id="welcome"></h1>
+    <p id="clock"></p>
+    <button onclick="nextStep(2)">Iniciar</button>
+  </div>
+
+  <div id="step2" class="hidden">
+    <h1>Localização</h1>
+    <p id="location">Nenhuma localização capturada.</p>
+    <button onclick="getLocation()">Capturar Local</button>
+    <div class="row hidden" id="goPhoto">
+      <button onclick="nextStep(3)">Ir para Foto</button>
+    </div>
+  </div>
+
+  <div id="step3" class="hidden">
+    <h1>Foto</h1>
+    <video id="video" autoplay></video>
+    <canvas id="canvas" class="hidden"></canvas>
+    <div class="row"><button onclick="takePhoto()">Capturar</button></div>
+    <div class="row"><button onclick="saveData()">Salvar Registro</button></div>
+  </div>
+
+  <div id="step4" class="hidden">
+    <h1>Relatório</h1>
+    <pre id="report"></pre>
+  </div>
+</div>
+
+<script>
+let data = {};
+
+function greeting(){
+  const h = new Date().getHours();
+  if(h < 12) return 'Bom dia';
+  if(h < 18) return 'Boa tarde';
+  return 'Boa noite';
+}
+
+function updateClock(){
+  const now = new Date();
+  document.getElementById('clock').innerText = now.toLocaleString();
+}
+
+function nextStep(n){
+  document.querySelectorAll('[id^=step]').forEach(s=>s.classList.add('hidden'));
+  document.getElementById('step'+n).classList.remove('hidden');
+}
+
+function getLocation(){
+  navigator.geolocation.getCurrentPosition(pos=>{
+    data.lat = pos.coords.latitude;
+    data.lng = pos.coords.longitude;
+    document.getElementById('location').innerText = `Latitude: ${data.lat}\nLongitude: ${data.lng}`;
+    document.getElementById('goPhoto').classList.remove('hidden');
+  });
+}
+
+async function startCamera(){
+  const stream = await navigator.mediaDevices.getUserMedia({video:true});
+  document.getElementById('video').srcObject = stream;
+}
+
+function takePhoto(){
+  const v = document.getElementById('video');
+  const c = document.getElementById('canvas');
+  c.width = v.videoWidth;
+  c.height = v.videoHeight;
+  c.getContext('2d').drawImage(v,0,0);
+  data.image = c.toDataURL();
+  c.classList.remove('hidden');
+}
+
+function saveData(){
+  data.date = new Date().toLocaleString();
+  fetch('https://api.ipify.org?format=json').then(r=>r.json()).then(ip=>{
+    data.ip = ip.ip;
+
+    document.getElementById('report').innerText =
+      `REGISTRO DE PONTO\n\n`+
+      `Data e Hora: ${data.date}\n`+
+      `Latitude: ${data.lat}\n`+
+      `Longitude: ${data.lng}\n`+
+      `IP: ${data.ip}\n`+
+      `Imagem capturada localmente.`;
+
+    nextStep(4);
+  });
+}
+
+setInterval(updateClock,1000);
+document.getElementById('welcome').innerText = greeting();
+startCamera();
+</script>
+</body>
+</html>
